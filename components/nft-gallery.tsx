@@ -1,5 +1,5 @@
 /**
- * Enhanced NFT Gallery with comprehensive token ID scanning and improved card flipping
+ * Enhanced NFT Gallery with real contract data integration
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,8 +20,10 @@ import {
   RotateCcw,
 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
+import { useAccount, useReadContract, usePublicClient } from "wagmi"
+import { CONTRACT_CONFIG } from "@/config/contract"
 
-// Mock types - replace with your actual types
+// Types
 interface UserNFT {
   tokenId: number
   contractAddress: string
@@ -72,14 +74,13 @@ function NFTCard({ nft, onViewOnEtherscan, onCopyContract }: NFTCardProps) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodedData}`
     setQrCodeUrl(qrUrl)
 
-    // Check usage status using in-memory storage (no localStorage in artifacts)
+    // Simulate usage status (replace with real logic)
     checkUsageStatus(nft.tokenId)
   }, [nft.tokenId, nft.contractAddress, nft.tokenURI])
 
   const checkUsageStatus = (tokenId: number) => {
     // In a real implementation, this would check your actual storage system
-    // For now, we'll simulate some usage data
-    const simulatedUsage = Math.random() > 0.7 // 30% chance of being "used"
+    const simulatedUsage = Math.random() > 0.8 // 20% chance of being "used"
     if (simulatedUsage) {
       setIsUsed(true)
       setUsageCount(Math.floor(Math.random() * 3) + 1)
@@ -365,10 +366,8 @@ function NFTCard({ nft, onViewOnEtherscan, onCopyContract }: NFTCardProps) {
 }
 
 export function NFTGallery() {
-  // Mock wallet connection - replace with your actual wallet connection
-  const [isConnected, setIsConnected] = useState(true)
-  const [address, setAddress] = useState("0x1234...5678")
-  const [chainId, setChainId] = useState(1) // mainnet
+  const { address, isConnected, chain } = useAccount()
+  const publicClient = usePublicClient()
   
   const [nfts, setNfts] = useState<UserNFT[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -381,14 +380,111 @@ export function NFTGallery() {
     timeElapsed: number
   } | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
-  
-  // Mock contract data - replace with your actual contract
-  const contractAddress = "0xC373774...F07Cb149"
-  const balance = 4
+
+  // Get user's NFT balance
+  const { data: balance, isError: balanceError, refetch: refetchBalance } = useReadContract({
+    address: CONTRACT_CONFIG.address as `0x${string}`,
+    abi: CONTRACT_CONFIG.abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && isConnected }
+  })
+
+  // Get user's address info (balance, total minted, remaining mints)
+  const { data: addressInfo, refetch: refetchAddressInfo } = useReadContract({
+    address: CONTRACT_CONFIG.address as `0x${string}`,
+    abi: CONTRACT_CONFIG.abi,
+    functionName: 'getAddressInfo',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && isConnected }
+  })
+
+  // Get contract name
+  const { data: contractName } = useReadContract({
+    address: CONTRACT_CONFIG.address as `0x${string}`,
+    abi: CONTRACT_CONFIG.abi,
+    functionName: 'name',
+  })
+
+  // Get contract symbol
+  const { data: contractSymbol } = useReadContract({
+    address: CONTRACT_CONFIG.address as `0x${string}`,
+    abi: CONTRACT_CONFIG.abi,
+    functionName: 'symbol',
+  })
+
+  // Convert balance to number
+  const userBalance = balance ? Number(balance) : 0
+
+  // Fetch metadata from tokenURI
+  const fetchMetadata = async (tokenURI: string): Promise<any> => {
+    try {
+      // Handle IPFS URLs
+      let url = tokenURI
+      if (tokenURI.startsWith('ipfs://')) {
+        url = tokenURI.replace('ipfs://', 'https://ipfs.io/ipfs/')
+      }
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const metadata = await response.json()
+      
+      // Handle IPFS image URLs
+      if (metadata.image && metadata.image.startsWith('ipfs://')) {
+        metadata.image = metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/')
+      }
+      
+      return metadata
+    } catch (error) {
+      console.error('Error fetching metadata:', error)
+      return null
+    }
+  }
+
+  // Check if user owns a specific token ID
+  const checkTokenOwnership = async (tokenId: number): Promise<boolean> => {
+    try {
+      if (!publicClient) return false
+      
+      const owner = await publicClient.readContract({
+        address: CONTRACT_CONFIG.address as `0x${string}`,
+        abi: CONTRACT_CONFIG.abi,
+        functionName: 'ownerOf',
+        args: [BigInt(tokenId)],
+      })
+      
+      return owner?.toString().toLowerCase() === address?.toLowerCase()
+    } catch (error) {
+      // Token doesn't exist or other error
+      return false
+    }
+  }
+
+  // Get token URI for a specific token ID
+  const getTokenURI = async (tokenId: number): Promise<string | null> => {
+    try {
+      if (!publicClient) return null
+      
+      const tokenURI = await publicClient.readContract({
+        address: CONTRACT_CONFIG.address as `0x${string}`,
+        abi: CONTRACT_CONFIG.abi,
+        functionName: 'tokenURI',
+        args: [BigInt(tokenId)],
+      })
+      
+      return tokenURI as string
+    } catch (error) {
+      console.error(`Error getting token URI for token ${tokenId}:`, error)
+      return null
+    }
+  }
 
   // Enhanced scanning function
   const scanForNFTs = useCallback(async () => {
-    if (!isConnected) return
+    if (!isConnected || !address || !publicClient || userBalance === 0) return
 
     setIsLoading(true)
     setError(null)
@@ -407,7 +503,6 @@ export function NFTGallery() {
         { start: 5001, end: 10000, name: "5001-10000" },
         { start: 10001, end: 50000, name: "10001-50000" },
         { start: 50001, end: 100000, name: "50001-100000" },
-        // Add more ranges for very high token IDs
         { start: 100001, end: 500000, name: "100001-500000" },
         { start: 500001, end: 1000000, name: "500001-1000000" },
       ]
@@ -415,7 +510,7 @@ export function NFTGallery() {
       const totalChecks = scanRanges.reduce((sum, range) => sum + (range.end - range.start + 1), 0)
       let currentCheck = 0
 
-      // Simulate comprehensive scanning
+      // Scan through ranges
       for (const range of scanRanges) {
         setProgress({
           current: currentCheck,
@@ -425,62 +520,63 @@ export function NFTGallery() {
           timeElapsed: Date.now() - startTime
         })
 
-        // Simulate finding NFTs in different ranges
-        // In real implementation, this would call your contract methods
-        if (foundNFTs.length < balance) {
-          // Simulate finding NFTs in this range
-          const shouldFindInRange = Math.random() > 0.7 // 30% chance per range
-          
-          if (shouldFindInRange) {
-            // Generate random token IDs within this range
-            const numToFind = Math.min(
-              Math.floor(Math.random() * 2) + 1, 
-              balance - foundNFTs.length
-            )
+        // Check tokens in this range (sample every 10th token for performance)
+        const step = Math.max(1, Math.floor((range.end - range.start + 1) / 100))
+        
+        for (let tokenId = range.start; tokenId <= range.end; tokenId += step) {
+          try {
+            const isOwned = await checkTokenOwnership(tokenId)
             
-            for (let i = 0; i < numToFind; i++) {
-              const tokenId = Math.floor(Math.random() * (range.end - range.start + 1)) + range.start
+            if (isOwned) {
+              // Create NFT object with loading state
+              const nft: UserNFT = {
+                tokenId,
+                contractAddress: CONTRACT_CONFIG.address,
+                tokenURI: '',
+                isLoading: true
+              }
               
-              // Avoid duplicates
-              if (!foundNFTs.some(nft => nft.tokenId === tokenId)) {
-                const mockNFT: UserNFT = {
-                  tokenId,
-                  contractAddress,
-                  tokenURI: `https://api.example.com/token/${tokenId}`,
-                  metadata: {
-                    name: `Cool NFT #${tokenId}`,
-                    description: `This is a cool NFT with token ID ${tokenId}. It features unique artwork and special properties that make it valuable to collectors.`,
-                    image: `https://picsum.photos/400/400?random=${tokenId}`,
-                    attributes: [
-                      { trait_type: "Rarity", value: Math.random() > 0.5 ? "Common" : "Rare" },
-                      { trait_type: "Color", value: ["Red", "Blue", "Green", "Purple"][Math.floor(Math.random() * 4)] }
-                    ]
-                  },
-                  isLoading: false
-                }
-                
-                foundNFTs.push(mockNFT)
+              foundNFTs.push(nft)
+              setNfts([...foundNFTs]) // Update UI immediately
+              
+              // Fetch token URI and metadata in background
+              const tokenURI = await getTokenURI(tokenId)
+              if (tokenURI) {
+                nft.tokenURI = tokenURI
+                const metadata = await fetchMetadata(tokenURI)
+                nft.metadata = metadata
+              }
+              
+              nft.isLoading = false
+              setNfts([...foundNFTs]) // Update with metadata
+              
+              // Stop if we found all expected NFTs
+              if (foundNFTs.length >= userBalance) {
+                break
               }
             }
+          } catch (error) {
+            console.error(`Error checking token ${tokenId}:`, error)
+          }
+          
+          currentCheck++
+          
+          // Small delay to prevent rate limiting
+          if (tokenId % 50 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 100))
           }
         }
-
-        // Update progress
-        currentCheck += (range.end - range.start + 1)
-        
-        // Add small delay to show progress
-        await new Promise(resolve => setTimeout(resolve, 150))
         
         // Stop if we found all NFTs
-        if (foundNFTs.length >= balance) {
+        if (foundNFTs.length >= userBalance) {
           break
         }
+        
+        currentCheck += Math.max(0, range.end - range.start + 1 - step)
       }
 
-      setNfts(foundNFTs)
-      
-      if (foundNFTs.length === 0 && balance > 0) {
-        setError(`Expected to find ${balance} NFTs but found none. Your NFTs might have very high token IDs beyond our scan range, or there might be an issue with the contract interface.`)
+      if (foundNFTs.length === 0 && userBalance > 0) {
+        setError(`Expected to find ${userBalance} NFTs but found none. Your NFTs might have very high token IDs beyond our scan range, or there might be an issue with the contract interface.`)
       }
       
     } catch (err) {
@@ -489,18 +585,19 @@ export function NFTGallery() {
       setIsLoading(false)
       setProgress(null)
     }
-  }, [isConnected, contractAddress, balance])
+  }, [isConnected, address, publicClient, userBalance])
 
-  // Auto-scan on mount
+  // Auto-scan when conditions are met
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && address && userBalance > 0) {
       scanForNFTs()
     }
-  }, [isConnected, scanForNFTs])
+  }, [isConnected, address, userBalance, scanForNFTs])
 
   const getEtherscanUrl = (tokenId: number) => {
+    const chainId = chain?.id || 1
     const baseUrl = chainId === 1 ? "https://etherscan.io" : "https://sepolia.etherscan.io"
-    return `${baseUrl}/token/${contractAddress}?a=${tokenId}`
+    return `${baseUrl}/token/${CONTRACT_CONFIG.address}?a=${tokenId}`
   }
 
   const handleViewOnEtherscan = (tokenId: number) => {
@@ -518,6 +615,8 @@ export function NFTGallery() {
   }
 
   const handleRefresh = () => {
+    refetchBalance()
+    refetchAddressInfo()
     scanForNFTs()
   }
 
@@ -526,7 +625,6 @@ export function NFTGallery() {
       <Card className="max-w-md mx-auto">
         <CardContent className="text-center py-12">
           <p className="text-gray-600 mb-6 text-lg">Please connect your wallet to view your NFTs</p>
-          <Button onClick={() => setIsConnected(true)} size="lg">Connect Wallet (Demo)</Button>
         </CardContent>
       </Card>
     )
@@ -538,7 +636,9 @@ export function NFTGallery() {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Grid3X3 className="h-6 w-6 mr-3" />
-            <CardTitle className="text-2xl">Your NFT Collection</CardTitle>
+            <CardTitle className="text-2xl">
+              {contractName ? `${contractName} Collection` : 'Your NFT Collection'}
+            </CardTitle>
           </div>
           <Button onClick={handleRefresh} variant="outline" size="default" disabled={isLoading}>
             <RefreshCw className={`h-5 w-5 mr-2 ${isLoading ? "animate-spin" : ""}`} />
@@ -550,7 +650,7 @@ export function NFTGallery() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Search className="h-5 w-5 text-blue-600" />
-                <span>Comprehensive scanning for your NFTs...</span>
+                <span>Scanning blockchain for your NFTs...</span>
               </div>
               {progress && (
                 <div className="space-y-2">
@@ -584,25 +684,51 @@ export function NFTGallery() {
         {/* Contract and Balance Information */}
         <div className="mb-6 space-y-3">
           <div className="p-4 bg-gray-50 rounded-xl">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-semibold">Contract Address:</span>
-              <button
-                onClick={() => handleCopyContract(contractAddress)}
-                className="text-base text-blue-600 hover:text-blue-800 flex items-center gap-2 font-mono"
-                title="Click to copy contract address"
-              >
-                {contractAddress.slice(0, 10)}...{contractAddress.slice(-8)}
-                <Copy className="h-4 w-4" />
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-base font-semibold">Contract:</span>
+                <button
+                  onClick={() => handleCopyContract(CONTRACT_CONFIG.address)}
+                  className="block text-base text-blue-600 hover:text-blue-800 font-mono mt-1"
+                  title="Click to copy contract address"
+                >
+                  {CONTRACT_CONFIG.address.slice(0, 10)}...{CONTRACT_CONFIG.address.slice(-8)}
+                  <Copy className="h-4 w-4 inline ml-2" />
+                </button>
+              </div>
+              <div>
+                <span className="text-base font-semibold">Collection:</span>
+                <p className="text-base mt-1">
+                  {contractName} ({contractSymbol})
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="p-4 bg-blue-50 rounded-xl">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-semibold">Your Balance:</span>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-base px-4 py-1">
-                {balance} NFT{balance !== 1 ? "s" : ""}
-              </Badge>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex justify-between items-center">
+                <span className="text-base font-semibold">Your Balance:</span>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-base px-4 py-1">
+                  {userBalance} NFT{userBalance !== 1 ? "s" : ""}
+                </Badge>
+              </div>
+              {addressInfo && (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold">Total Minted:</span>
+                    <Badge variant="outline" className="text-base px-4 py-1">
+                      {Number(addressInfo[1])}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold">Remaining Mints:</span>
+                    <Badge variant="outline" className="text-base px-4 py-1">
+                      {Number(addressInfo[2])}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -613,58 +739,22 @@ export function NFTGallery() {
           )}
         </div>
 
-        {error && (
+        {balanceError && (
           <div className="p-5 bg-red-50 border border-red-200 rounded-xl mb-6">
-            <p className="text-red-800 font-semibold text-lg">❌ Scanning Issue</p>
-            <p className="text-red-600 text-base mt-2">{error}</p>
-            <div className="mt-4 space-y-2 text-base text-red-700">
-              <p><strong>Possible solutions:</strong></p>
-              <ul className="list-disc list-inside space-y-1 ml-3">
-                <li>Your NFTs might have very high token IDs (beyond 1M)</li>
-                <li>Check if the contract address is correct</li>
-                <li>Verify you're on the correct network</li>
-                <li>Try the enhanced scan again</li>
-              </ul>
-            </div>
-            <Button onClick={handleRefresh} variant="outline" size="default" className="mt-4">
-              Try Enhanced Scan Again
-            </Button>
+            <p className="text-red-800 font-semibold text-lg">❌ Error Reading Contract</p>
+            <p className="text-red-600 text-base mt-2">Failed to read your NFT balance from the contract.</p>
           </div>
         )}
 
-        {isLoading && nfts.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
-            <p className="text-gray-600 text-lg">Comprehensive scanning in progress...</p>
-            <p className="text-base text-gray-500 mt-3">
-              {progress
-                ? `Scanning range ${progress.currentRange} (${(progress.timeElapsed / 1000).toFixed(1)}s elapsed)`
-                : "Scanning multiple token ID ranges from 1 to 1,000,000+"}
-            </p>
-            {balance > 0 && <p className="text-base text-blue-600 mt-2 font-medium">Expected to find {balance} NFTs</p>}
+{error && (
+          <div className="p-5 bg-red-50 border border-red-200 rounded-xl mb-6">
+            <p className="text-red-800 font-semibold text-lg">❌ Scanning Issue</p>
+            <p className="text-red-600 text-base mt-2">{error}</p>
           </div>
-        ) : nfts.length === 0 && !isLoading ? (
-          <div className="text-center py-16">
-            <Grid3X3 className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">No NFTs Found</h3>
-            <p className="text-gray-600 mb-6 text-base max-w-md mx-auto">
-              {balance > 0
-                ? `You have ${balance} NFT${balance !== 1 ? "s" : ""} but they weren't found in our comprehensive scan. They might have extremely high token IDs or be in an unexpected range.`
-                : "You don't have any NFTs from this collection yet."}
-            </p>
-            {balance > 0 && (
-              <div className="space-y-3">
-                <Button onClick={handleRefresh} variant="outline" size="default">
-                  <RefreshCw className="h-5 w-5 mr-2" />
-                  Run Comprehensive Scan Again
-                </Button>
-                <p className="text-sm text-gray-500">
-                  Our enhanced scan checks ranges from 1 to 1,000,000+
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
+        )}
+
+        {/* NFT Grid */}
+        {nfts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {nfts.map((nft) => (
               <NFTCard
@@ -675,8 +765,74 @@ export function NFTGallery() {
               />
             ))}
           </div>
+        ) : !isLoading && userBalance === 0 ? (
+          <div className="text-center py-12">
+            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <Image className="h-12 w-12 text-gray-400" />
+            </div>
+            <p className="text-xl font-semibold text-gray-600 mb-3">No NFTs Found</p>
+            <p className="text-base text-gray-500 mb-6">
+              You don't own any NFTs from this collection yet.
+            </p>
+            <Button variant="outline" size="lg">
+              <ExternalLink className="h-5 w-5 mr-2" />
+              Explore Collection
+            </Button>
+          </div>
+        ) : !isLoading && userBalance > 0 && nfts.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="mx-auto w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6">
+              <AlertCircle className="h-12 w-12 text-yellow-600" />
+            </div>
+            <p className="text-xl font-semibold text-gray-600 mb-3">NFTs Not Found in Scan Range</p>
+            <p className="text-base text-gray-500 mb-6">
+              We scanned up to token ID 1,000,000 but couldn't find your {userBalance} NFT{userBalance !== 1 ? "s" : ""}. 
+              Your tokens might have higher IDs or there might be a contract interface issue.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Button onClick={handleRefresh} variant="outline" size="lg">
+                <RefreshCw className="h-5 w-5 mr-2" />
+                Try Again
+              </Button>
+              <Button variant="outline" size="lg">
+                <Info className="h-5 w-5 mr-2" />
+                Get Help
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Loading State for Empty Gallery */}
+        {isLoading && nfts.length === 0 && (
+          <div className="text-center py-12">
+            <div className="mx-auto w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+            <p className="text-xl font-semibold text-gray-600 mb-3">Scanning for Your NFTs</p>
+            <p className="text-base text-gray-500 mb-6">
+              This may take a moment as we search through the blockchain...
+            </p>
+          </div>
         )}
+
+        {/* Footer Information */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="text-center text-sm text-gray-500 space-y-2">
+            <p>
+              💡 <strong>Tip:</strong> Click any NFT card to reveal its QR code for easy sharing and verification
+            </p>
+            <p>
+              QR codes contain token information and can be scanned to view NFT details
+            </p>
+            <p className="flex items-center justify-center gap-2">
+              <Info className="h-4 w-4" />
+              Connected to {chain?.id === 1 ? "Ethereum Mainnet" : "Sepolia Testnet"}
+            </p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )
 }
+
+export default NFTGallery
