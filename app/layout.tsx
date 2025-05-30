@@ -15,34 +15,6 @@ const inter = Inter({
   display: "swap",
 })
 
-// Metadata for the application
-export const metadata = {
-  title: "Crefy-Mems | NFT Minting Platform",
-  description: "Mint unique NFTs on Ethereum Mainnet and Sepolia testnet with ease.",
-  keywords: ["NFT", "Ethereum", "Web3", "Blockchain", "Minting", "Digital Art"],
-  authors: [{ name: "Fadhil Mulinya" }],
-  creator: "Fadhil Mulinya",
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/apple-icon.png",
-  },
-  manifest: "/site.webmanifest",
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://crefy-mems.vercel.app",
-    title: "Crefy-Mems | NFT Minting Platform",
-    description: "Mint unique NFTs on Ethereum Mainnet and Sepolia testnet with ease.",
-    siteName: "Crefy-Mems",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Crefy-Mems | NFT Minting Platform",
-    description: "Mint unique NFTs on Ethereum Mainnet and Sepolia testnet with ease.",
-  },
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
-}
-
 export default function RootLayout({
   children,
 }: {
@@ -62,6 +34,8 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#6366f1" />
         <link rel="icon" href="/favicon.ico" />
+        <title>Crefy-Mems | NFT Minting Platform</title>
+        <meta name="description" content="Mint unique NFTs on Ethereum Mainnet and Sepolia testnet with ease." />
       </head>
       <body className="min-h-screen bg-gradient-to-br from-background to-background/80 antialiased">
         <ThemeProvider
