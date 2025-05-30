@@ -29,7 +29,8 @@ export function NFTMinter() {
   const [mintProgress, setMintProgress] = useState(0)
 
   const chainId = useChainId()
-  const isUnsupportedNetwork = ![mainnet.id, sepolia.id].includes(chainId)
+  // Fix TypeScript error by properly checking if chainId is one of the supported chains
+  const isUnsupportedNetwork = !([mainnet.id, sepolia.id] as number[]).includes(chainId)
 
   // Simulate progress during minting
   useEffect(() => {

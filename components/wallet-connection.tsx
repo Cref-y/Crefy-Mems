@@ -24,7 +24,8 @@ export function WalletConnection() {
   const { connect, isPending, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   const { data: ensName } = useEnsName({ address })
-  const { data: ensAvatar } = useEnsAvatar({ name: ensName })
+  // Fix TypeScript error by ensuring we only pass string | undefined to useEnsAvatar
+  const { data: ensAvatar } = useEnsAvatar({ name: ensName ?? undefined })
   const [copied, setCopied] = useState(false)
   const [showAnimation, setShowAnimation] = useState(false)
 
