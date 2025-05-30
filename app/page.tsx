@@ -11,8 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAccount } from "wagmi"
 import { ContractStats } from "@/components/contract-stats"
 import { NFTGallery } from "@/components/nft-gallery"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Badge } from "@/components/ui/badge"
+import { AppNavigation } from "@/components/app-navigation"
 import { Button } from "@/components/ui/button"
 import { Sparkles, Wallet, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -31,12 +30,6 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // Format wallet address for display
-  const formatAddress = (addr: string | undefined) => {
-    if (!addr) return ""
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
-  }
-
   return (
     <div className="relative min-h-screen">
       {/* Decorative background elements */}
@@ -46,30 +39,8 @@ export default function HomePage() {
         <div className="absolute -bottom-[10%] left-[20%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[100px] animate-pulse-subtle" />
       </div>
 
-      {/* Floating header with theme toggle and connection status */}
-      <header 
-        className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300 py-3",
-          scrolled ? "bg-background/80 backdrop-blur-lg shadow-sm" : "bg-transparent"
-        )}
-      >
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <h2 className="font-bold text-xl">Crefy-Mems</h2>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {isConnected && address && (
-              <Badge variant="outline" className="py-1.5 px-3 bg-card/50 backdrop-blur-sm">
-                <Wallet className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                <span>{formatAddress(address)}</span>
-              </Badge>
-            )}
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      {/* App Navigation */}
+      <AppNavigation />
 
       {/* Hero section with gradient text */}
       <section className="pt-28 pb-16 px-4">
