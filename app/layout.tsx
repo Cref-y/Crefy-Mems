@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { WagmiProvider } from "wagmi"
 import { wagmiConfig } from "@/lib/wagmi-config"
 import "./globals.css"
+import { ThirdwebProvider } from "thirdweb/react";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function RootLayout({
   children,
@@ -16,9 +18,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        </WagmiProvider>
+        <ThirdwebProvider>
+          <WagmiProvider config={wagmiConfig}>
+            <ThemeProvider>
+              <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            </ThemeProvider>
+          </WagmiProvider>
+        </ThirdwebProvider>
       </body>
     </html>
   )
