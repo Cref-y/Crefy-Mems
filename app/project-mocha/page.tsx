@@ -50,6 +50,7 @@ export default function Home() {
         try {
             // Call the actual mintToken function from the hook
             const receipt = await mintToken();
+            console.log("Minting token...", receipt);
 
             // Generate token data after successful minting
             const tokenId = 'MOJA' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
