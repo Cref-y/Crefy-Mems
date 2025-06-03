@@ -24,14 +24,14 @@ export const SuccessSection = ({
             {/* NFT Card */}
             <NFTCard tokenData={tokenData} qrCodeUrl={qrCodeUrl} />
 
-            <motion.button
+            {/* <motion.button
                 onClick={onResetClick}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="w-full mt-6 border-2 border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300"
             >
                 Mint Another Token
-            </motion.button>
+            </motion.button> */}
         </motion.div>
     );
 };

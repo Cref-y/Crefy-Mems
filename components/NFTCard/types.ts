@@ -1,6 +1,7 @@
 // components/NFTCard/types.ts
 export interface TokenData {
     id: string;
+    name?: string;
     type: string;
     issuer: string;
     timestamp: number;

@@ -18,13 +18,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThirdwebProvider>
-          <WagmiProvider config={wagmiConfig}>
+        <WagmiProvider config={wagmiConfig}>
+          <ThirdwebProvider>
             <ThemeProvider>
               <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
             </ThemeProvider>
-          </WagmiProvider>
-        </ThirdwebProvider>
+          </ThirdwebProvider>
+        </WagmiProvider>
       </body>
     </html>
   )

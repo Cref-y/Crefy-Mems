@@ -4,8 +4,7 @@ import { motion } from 'framer-motion';
 import { TokenData } from './types';
 import { QRCodeSection } from '@/components/NFTCard/QRCodeSection';
 import { TokenStats } from '@/components/NFTCard/TokenStats';
-import Lottie from 'lottie-react';
-import coffee2Animation from '@/public/animations/coffee2-animation.json';
+import { useState, useEffect } from 'react';
 
 const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -25,71 +24,195 @@ const getRarityBg = (rarity: string) => {
     }
 };
 
-export const NFTCard = ({ tokenData, qrCodeUrl }: { tokenData: TokenData, qrCodeUrl: string }) => {
+const getCardBg = (rarity: string) => {
+    switch (rarity) {
+        case 'Legendary': return 'bg-gradient-to-br from-purple-900/40 via-pink-900/50 to-purple-800/60 border-purple-400/20';
+        case 'Epic': return 'bg-gradient-to-br from-blue-900/40 via-indigo-900/50 to-blue-800/60 border-blue-400/20';
+        case 'Rare': return 'bg-gradient-to-br from-cyan-900/40 via-teal-900/50 to-cyan-800/60 border-cyan-400/20';
+        default: return 'bg-gradient-to-br from-amber-900/40 via-orange-900/50 to-amber-800/60 border-amber-400/20';
+    }
+};
+
+// Confetti Component
+const Confetti = () => {
+    const [confettiPieces, setConfettiPieces] = useState<Array<{
+        id: number;
+        x: number;
+        y: number;
+        rotation: number;
+        color: string;
+        size: number;
+        delay: number;
+    }>>([]);
+
+    useEffect(() => {
+        const colors = ['#FFD700', '#FF6B35', '#F7931E', '#FFB347', '#FFAA1D', '#FFA500'];
+        const pieces = Array.from({ length: 50 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: -10,
+            rotation: Math.random() * 360,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            size: Math.random() * 6 + 3,
+            delay: Math.random() * 2
+        }));
+        setConfettiPieces(pieces);
+
+        const timer = setTimeout(() => {
+            setConfettiPieces([]);
+        }, 180000); // 3 minutes in milliseconds
+
+    }, []);
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20, rotateY: -15 }}
-            animate={{ opacity: 1, y: 0, rotateY: 0 }}
-            transition={{ duration: 0.8, type: "spring" }}
-            className="m-w-full"
-        >
-            <div className="rounded-3xl overflow-hidden relative backdrop-blur-sm bg-gradient-to-br from-amber-900/40 via-orange-900/50 to-amber-800/60 shadow-2xl border border-amber-400/20">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {confettiPieces.map((piece) => (
+                <motion.div
+                    key={piece.id}
+                    className="absolute w-2 h-2 rounded-sm"
+                    style={{
+                        backgroundColor: piece.color,
+                        width: piece.size,
+                        height: piece.size,
+                        left: `${piece.x}%`,
+                    }}
+                    initial={{
+                        y: -20,
+                        rotation: piece.rotation,
+                        opacity: 1
+                    }}
+                    animate={{
+                        y: window.innerHeight + 50,
+                        rotation: piece.rotation + 360,
+                        opacity: [1, 1, 0.8, 0]
+                    }}
+                    transition={{
+                        duration: 3 + Math.random() * 2,
+                        delay: piece.delay,
+                        repeat: Infinity,
+                        ease: "linear"
+                    }}
+                />
+            ))}
+        </div>
+    );
+};
 
-                {/* Success indicator
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-                    <div className="bg-green-500 rounded-full p-2 shadow-lg">
-                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                    </div>
-                </div> */}
+export const NFTCard = ({ tokenData, qrCodeUrl }: { tokenData: TokenData, qrCodeUrl: string }) => {
+    const [isFlipped, setIsFlipped] = useState(false);
 
-                {/* Header with success message */}
-                <div className="relative p-6 pb-4 pt-12">
-                    {/* <div className="text-center mb-6">
-                        <Lottie animationData={coffee2Animation} loop={true} />
-                    </div> */}
+    return (
+        <div className="relative max-w-full w-full">
+            {/* Infinite Confetti */}
+            <Confetti />
 
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                            <img
-                                src='https://res.cloudinary.com/dswyz4vpp/image/upload/v1748564362/crefy/lp7qfnz5unxegn9w1v9k.jpg'
-                                className='w-12 h-12 rounded-full border-2 border-amber-300/60 shadow-lg'
-                                alt="Project Moja Logo"
-                            />
-                            <div>
-                                <h3 className="text-amber-100 font-bold text-lg">Project Moja</h3>
-                                <p className="text-amber-300/80 text-xs">Coffee NFT</p>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, type: "spring" }}
+                className="max-w-full w-full"
+            >
+                <div
+                    className="relative w-full cursor-pointer"
+                    onClick={() => setIsFlipped(!isFlipped)}
+                >
+                    {/* Front Side */}
+                    <motion.div
+                        className={`rounded-3xl overflow-hidden min-h-[500px] relative backdrop-blur-sm shadow-2xl  ${getCardBg(tokenData.rarity)}`}
+                        initial={false}
+                        animate={{ rotateY: isFlipped ? 180 : 0 }}
+                        transition={{ duration: 0.6 }}
+                        style={{ backfaceVisibility: 'hidden', position: 'absolute', width: '100%' }}
+                    >
+                        <div className="relative p-6 pt-12 pb-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center space-x-3">
+                                    <img
+                                        src='https://res.cloudinary.com/dswyz4vpp/image/upload/v1748564362/crefy/lp7qfnz5unxegn9w1v9k.jpg'
+                                        className='w-12 h-12 rounded-full border-2 border-amber-300/60 shadow-lg'
+                                        alt="Project Moja Logo"
+                                    />
+                                    <div>
+                                        <h3 className="text-amber-100 font-bold text-lg">Project Moja</h3>
+                                        <p className="text-amber-300/80 text-xs">Coffee NFT</p>
+                                    </div>
+                                </div>
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-sm ${getRarityBg(tokenData.rarity)}`}>
+                                    {tokenData.rarity}
+                                </span>
+                            </div>
+
+                            <TokenStats tokenData={tokenData} />
+
+                            {/* Outstanding Tap to Reveal Text */}
+                            <div className="absolute bottom-4 left-0 right-0 text-center">
+                                <motion.div
+                                    animate={{
+                                        scale: [1, 1.1, 1],
+                                        textShadow: [
+                                            '0 0 10px rgba(255, 215, 0, 0.8)',
+                                            '0 0 20px rgba(255, 215, 0, 1)',
+                                            '0 0 10px rgba(255, 215, 0, 0.8)'
+                                        ]
+                                    }}
+                                    transition={{
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                    }}
+                                    className="inline-block"
+                                >
+                                    <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 bg-clip-text text-transparent font-bold text-sm px-4 py-2 rounded-full border-2 border-amber-400/50 bg-amber-900/30 backdrop-blur-sm shadow-lg">
+                                        ✨ TAP TO REVEAL QR CODE ✨
+                                    </div>
+                                </motion.div>
                             </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-sm ${getRarityBg(tokenData.rarity)}`}>
-                            {tokenData.rarity}
-                        </span>
-                    </div>
+                    </motion.div>
 
-                    {/* Token ID and Title */}
-                    <div className="text-center mb-6">
-                        <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-orange-200 mb-3">
-                            Mocha Coffee Token
-                        </h2>
-                        <div className="bg-amber-950/60 backdrop-blur-sm rounded-xl px-4 py-3 inline-block border border-amber-400/20">
-                            <p className="text-amber-300/80 text-sm mb-1">Token ID</p>
-                            <p className="text-amber-200 font-mono font-bold text-lg tracking-wider">{tokenData.id}</p>
+                    {/* Back Side */}
+                    <motion.div
+                        className={`rounded-3xl overflow-hidden relative backdrop-blur-sm shadow-2xl ${getCardBg(tokenData.rarity)}`}
+                        initial={{ rotateY: 180 }}
+                        animate={{ rotateY: isFlipped ? 0 : 180 }}
+                        transition={{ duration: 0.6 }}
+                        style={{ backfaceVisibility: 'hidden', width: '100%' }}
+                    >
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center space-x-3">
+                                    <img
+                                        src='https://res.cloudinary.com/dswyz4vpp/image/upload/v1748564362/crefy/lp7qfnz5unxegn9w1v9k.jpg'
+                                        className='w-10 h-10 rounded-full border-2 border-amber-300/60 shadow-lg'
+                                        alt="Project Moja Logo"
+                                    />
+                                    <div>
+                                        <h3 className="text-amber-100 font-bold text-md">Project Moja</h3>
+                                        <p className="text-amber-300/80 text-xs">Coffee NFT</p>
+                                    </div>
+                                </div>
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold border backdrop-blur-sm ${getRarityBg(tokenData.rarity)}`}>
+                                    {tokenData.rarity}
+                                </span>
+                            </div>
+
+                            <QRCodeSection qrCodeUrl={qrCodeUrl} />
+
+                            {/* <div className="mt-4 text-center">
+                                <p className="text-xs text-amber-300/60 mb-2">Present this code at checkout</p>
+                                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-3">
+                                    <p className="text-amber-200 text-sm font-medium">{tokenData.name || 'Mocha Coffee Token'}</p>
+                                    <p className="text-amber-300/80 text-xs mt-1">Redemptions: {tokenData.redemptions}/{tokenData.maxRedemptions}</p>
+                                </div>
+                            </div> */}
+
+                            <div className="absolute bottom-4 left-0 right-0 text-center">
+                                <p className="text-xs text-amber-300/60">Tap to return</p>
+                            </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
-
-                <QRCodeSection qrCodeUrl={qrCodeUrl} />
-                <TokenStats tokenData={tokenData} />
-
-                {/* Footer */}
-                <div className="bg-amber-950/40 backdrop-blur-sm px-6 py-4 border-t border-amber-400/10">
-                    <div className="flex items-center justify-between text-xs text-amber-300/70">
-                        <span>Valid Until</span>
-                        <span className="text-amber-200 font-medium">{tokenData.validUntil || 'Fri, Jun 6, 2025'}</span>
-                    </div>
-                </div>
-            </div>
-        </motion.div>
+            </motion.div>
+        </div>
     );
 };

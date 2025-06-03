@@ -3,12 +3,12 @@
 
 export const QRCodeSection = ({ qrCodeUrl }: { qrCodeUrl: string }) => {
     return (
-        <div className="px-6 pb-4 relative">
-            <div className="bg-white p-4 rounded-2xl mx-auto w-fit shadow-inner relative group">
+        <div className="px-2 pb-2 relative">
+            <div className="bg-white p-3 rounded-xl mx-auto w-fit shadow-inner relative group">
                 <img
                     src={qrCodeUrl}
                     alt="Coffee Token QR Code"
-                    className="w-40 h-40 rounded-lg transition-transform duration-300 group-hover:scale-105"
+                    className="w-full h-78 rounded-lg transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="w-12 h-12 bg-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -18,7 +18,7 @@ export const QRCodeSection = ({ qrCodeUrl }: { qrCodeUrl: string }) => {
                     </div>
                 </div>
             </div>
-            <p className="text-center text-gray-400 text-xs mt-2">
+            <p className="text-center text-amber-300/70 text-xs mt-2">
                 Scan to redeem at participating locations
             </p>
         </div>

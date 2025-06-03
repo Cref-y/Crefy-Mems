@@ -13,6 +13,7 @@ import { TokenData } from '@/components/NFTCard/types';
 import { ConnectButton } from 'thirdweb/react';
 import { client } from '@/config/client';
 import { useRouter } from 'next/navigation';
+import { useContract } from '@/hooks/useContract';
 
 export default function Home() {
     const router = useRouter();
@@ -24,39 +25,42 @@ export default function Home() {
     const [showCoffeeAnimation, setShowCoffeeAnimation] = useState(false);
     const [showFloatingParticles, setShowFloatingParticles] = useState(false);
 
+    const {
+        account,
+        status,
+        connectWallet,
+        mintToken,
+        isConnected,
+        tokenMinted
+    } = useContract();
+
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const mintToken = async () => {
+    const handleMintToken = async () => {
+        if (!isConnected) {
+            await connectWallet();
+            if (!isConnected) return;  // If still not connected, exit
+        }
+
         setIsMinting(true);
         setShowCoffeeAnimation(true);
 
-        // Simulate minting process
-        setTimeout(async () => {
+        try {
+            // Call the actual mintToken function from the hook
+            const receipt = await mintToken();
+
+            // Generate token data after successful minting
             const tokenId = 'MOJA' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
             const now = new Date();
             const validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-            const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
-            const weights = [0.6, 0.25, 0.1, 0.05]; // Weighted probabilities
-            let random = Math.random();
-            let rarityIndex = 0;
-
-            for (let i = 0; i < weights.length; i++) {
-                random -= weights[i];
-                if (random <= 0) {
-                    rarityIndex = i;
-                    break;
-                }
-            }
-
-            const rarity = rarities[rarityIndex];
+            const rarity = 'Coffee Cup';
 
             const newTokenData: TokenData = {
                 id: tokenId,
                 type: 'Mocha Coffee Token',
-                issuer: 'Project Moja',
+                issuer: 'Project Mocha',
                 timestamp: Date.now(),
                 mintedDate: now.toLocaleDateString('en-US', {
                     year: 'numeric',
@@ -75,47 +79,42 @@ export default function Home() {
                     year: 'numeric'
                 }),
                 redemptions: 0,
-                maxRedemptions: rarity === 'Legendary' ? 5 : rarity === 'Epic' ? 4 : rarity === 'Rare' ? 3 : 2,
+                maxRedemptions: 1,
                 value: 'FREE',
                 rarity: rarity
             };
 
             // Generate QR code
-            try {
-                const qrUrl = await QRCode.toDataURL(JSON.stringify(newTokenData), {
-                    width: 300,
-                    margin: 2,
-                    color: {
-                        dark: '#1f2937',
-                        light: '#ffffff'
-                    },
-                    errorCorrectionLevel: 'M'
-                });
+            const qrUrl = await QRCode.toDataURL(JSON.stringify(newTokenData), {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#1f2937',
+                    light: '#ffffff'
+                },
+                errorCorrectionLevel: 'M'
+            });
 
-                setQrCodeUrl(qrUrl);
-                setTokenData(newTokenData);
-                setShowCoffeeAnimation(false);
+            setQrCodeUrl(qrUrl);
+            setTokenData(newTokenData);
+            setShowCoffeeAnimation(false);
 
-                // Trigger confetti and success animations
-                createCoffeeConfetti();
-                setShowFloatingParticles(true);
+            // Trigger confetti and success animations
+            createCoffeeConfetti();
+            setShowFloatingParticles(true);
+            setIsTokenMinted(true);
 
-                setTimeout(() => {
-                    setIsTokenMinted(true);
-                    setIsMinting(false);
-                }, 500);
+            // Stop floating particles after 5 seconds
+            setTimeout(() => {
+                setShowFloatingParticles(false);
+            }, 5000);
 
-                // Stop floating particles after 5 seconds
-                setTimeout(() => {
-                    setShowFloatingParticles(false);
-                }, 5000);
-
-            } catch (err) {
-                console.error('Error generating QR code:', err);
-                setIsMinting(false);
-                setShowCoffeeAnimation(false);
-            }
-        }, 2000);
+        } catch (error) {
+            console.error('Error minting token:', error);
+            setShowCoffeeAnimation(false);
+        } finally {
+            setIsMinting(false);
+        }
     };
 
     const resetMinting = () => {
@@ -153,10 +152,6 @@ export default function Home() {
                             className='h-[60px]'
                             alt="Project Moja Logo"
                         />
-                        {/* <div>
-                            <h1 className="text-white font-bold text-lg">Project Mocha</h1>
-                            <p className="text-amber-300 text-xs">Premium Coffee Experience</p>
-                        </div> */}
                     </div>
 
                     <div className="connect-button-wrapper">
@@ -223,23 +218,41 @@ export default function Home() {
                 </div>
 
                 <div className="relative container mx-auto px-4 py-6 max-w-md z-20">
-                    {/* Header - Simplified since logo moved to nav */}
+                    {/* Header */}
                     <motion.header
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
                         className="text-center mb-8"
                     >
-                        <h2 className="text-3xl font-bold text-white mb-2">
-                            Mint Your Coffee Token
-                        </h2>
-                        <p className="text-amber-200 text-sm opacity-90">
-                            Redeem at participating locations worldwide
-                        </p>
+                        {!isTokenMinted ? (
+                            <>
+                                <h2 className="text-3xl font-bold text-white mb-2">
+                                    Mint Your Coffee Token
+                                </h2>
+                                <p className="text-amber-200 text-sm opacity-90">
+                                    Redeem at participating locations worldwide
+                                </p>
+                                {tokenMinted !== undefined && (
+                                    <p className="text-amber-100 mt-2">
+                                        Coffee Minted: {tokenMinted.toString()}
+                                    </p>
+                                )}
+                                {status && (
+                                    <p className="text-amber-100 mt-1 text-sm">
+                                        {status}
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <h2 className="text-3xl font-bold text-white mb-2">
+                                Success! Your Coffee Token is Minted
+                            </h2>
+                        )}
                     </motion.header>
 
                     {/* Main Card */}
-                    <div className={`bg-white/10 backdrop-blur-2xl ${!isTokenMinted ? 'p-8' : ''} rounded-3xl shadow-2xl shadow-black/20  mb-8 border border-white/20 relative overflow-hidden`}>
+                    <div className={`bg-white/10 backdrop-blur-2xl ${!isTokenMinted ? 'p-8' : ''} rounded-3xl shadow-2xl shadow-black/20 mb-8 border border-white/20 relative overflow-hidden`}>
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite] pointer-events-none"></div>
 
                         <motion.div
@@ -257,7 +270,7 @@ export default function Home() {
                                 {!isTokenMinted ? (
                                     <MintingSection
                                         isMinting={isMinting}
-                                        onMintClick={mintToken}
+                                        onMintClick={handleMintToken}
                                     />
                                 ) : tokenData ? (
                                     <SuccessSection
@@ -284,7 +297,9 @@ export default function Home() {
                         <p className="text-xs opacity-75">
                             For coffee enthusiasts worldwide
                         </p>
-                        {/* show that is product was build with utopia */}
+                        <p className="text-xs opacity-75">
+                            Built with ❤️ by <a href="https://utopia.com" className="text-amber-400 font-semibold">Utopia</a>
+                        </p>
                     </motion.footer>
                 </div>
 

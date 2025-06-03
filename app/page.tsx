@@ -8,8 +8,12 @@ import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/context/ThemeContext';
 import { ConnectButton } from 'thirdweb/react';
 import { client } from '@/config/client';
-import { getNonce, login } from './api/useAuth';
 import { useProfiles } from "thirdweb/react";
+import { useActiveAccount } from 'thirdweb/react';
+import { authService } from './api/useAuth';
+import { signLoginPayload } from 'thirdweb/auth';
+import { generatePayload, verifyPayload } from './api/auth';
+import customWallets from '@/config/connect-widget';
 
 // Custom Modal Component
 const CustomModal = ({ isOpen, onClose, children, theme }: { isOpen: boolean, onClose: () => void, children: React.ReactNode, theme: any }) => {
@@ -101,7 +105,18 @@ export default function CrefyHeroComponent() {
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [authError, setAuthError] = useState('');
-  const [address, setAddress] = useState<string | null>(null);
+  const account = useActiveAccount();
+  const address = account?.address;
+
+  useEffect(() => {
+    if (address) {
+      if (!localStorage.getItem('walletAddress')) {
+        localStorage.setItem('walletAddress', address);
+      }
+      setAuthStatus('loading');
+      handlePress();
+    }
+  }, [address]);
 
   // Get account and profiles at the top level
   const { data: profiles } = useProfiles({
@@ -118,6 +133,7 @@ export default function CrefyHeroComponent() {
   const fadeIn = useAnimation();
   const slideUp = useAnimation();
   const shimmerAnim = useAnimation();
+
 
   useEffect(() => {
     // Initial fade in animation
@@ -198,37 +214,56 @@ export default function CrefyHeroComponent() {
       scale: 1,
       transition: { duration: 0.2 }
     });
+    if (!localStorage.getItem('authToken')) {
+      setModalIsOpen(true);
+      handleAuth();
+    } else {
+      router.push('/project-mocha');
+    }
 
-    setModalIsOpen(true);
-    handleAuth();
   };
 
   const handleAuth = async () => {
     try {
-      if (!profiles) return;
-      console.log(profiles);
-      const address: any = profiles[0].details.address;
+      if (!profiles && !address) return;
       console.log(address);
       setAuthStatus('loading');
 
-      // Get nonce from server
-      const nonce = await getNonce(address);
-      console.log(nonce);
+      const nonce = await authService.getNonce();
+      console.log('Got nonce:', nonce);
 
-      // Here you would typically prompt the user to sign the nonce with their wallet
+      if (!nonce) {
+        setAuthStatus('error');
+        setAuthError('Failed to get nonce');
+        return;
+      }
       // For demo purposes, we'll simulate this step
       const message = `I am signing this message to authenticate with Crefy. Nonce: ${nonce}`;
-      const signature = `simulated-signature-for-${address}`;
+      if (!account) {
+        throw new Error('Account is undefined');
+      }
+      const payload = await generatePayload({
+        address: account?.address,
+        chainId: 17000,
+      });
+
+      const signatureResponse = await signLoginPayload({
+        payload,
+        account
+      });
+      console.log('signature', signatureResponse.signature);
+
+      const finalResult = await verifyPayload(signatureResponse);
+
+      console.log('finalResult', finalResult);
 
       // Send to server for verification
-      const authResponse = await login(address, message, signature);
+      const authResponse = await authService.login(message, signatureResponse, address as any);
 
       setAuthStatus('success');
 
       // Redirect after short delay to show success state
-      setTimeout(() => {
-        router.push('/crefy');
-      }, 1500);
+      router.push('/project-mocha');
 
     } catch (error) {
       console.error('Authentication error:', error);
@@ -407,6 +442,8 @@ export default function CrefyHeroComponent() {
         <div className="flex flex-col items-center gap-2">
           <ConnectButton
             client={client}
+            wallets={customWallets}
+            connectModal={{ size: "compact" }}
             signInButton={{
               label: "Sign in with Crefy",
               style: {
@@ -431,9 +468,6 @@ export default function CrefyHeroComponent() {
             appMetadata={{
               name: "Crefy",
               url: "https://crefy.xyz",
-            }}
-            onConnect={(wallet: any) => {
-              console.log(wallet);
             }}
           />
           <p
@@ -479,6 +513,7 @@ export default function CrefyHeroComponent() {
             {authStatus === 'error' && 'Authentication Failed'}
           </h2>
 
+
           {authStatus === 'idle' && (
             <>
               <p className="text-center mb-6" style={{ color: theme.colors.secondaryText }}>
@@ -486,6 +521,8 @@ export default function CrefyHeroComponent() {
               </p>
               <ConnectButton
                 client={client}
+                wallets={customWallets}
+                connectModal={{ size: "compact" }}
                 connectButton={{
                   label: "Connect Wallet",
                   style: {
