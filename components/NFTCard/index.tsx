@@ -100,7 +100,7 @@ const Confetti = () => {
 
 export const NFTCard = ({ tokenData, qrCodeUrl }: { tokenData: TokenData, qrCodeUrl: string }) => {
     const [isFlipped, setIsFlipped] = useState(false);
-
+    console.log(qrCodeUrl);
     return (
         <div className="relative max-w-full w-full">
             {/* Infinite Confetti */}

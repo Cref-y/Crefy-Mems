@@ -11,21 +11,23 @@ import { Badge } from "@/components/ui/badge"
 import { QrCode, Copy, Eye, RotateCcw } from "lucide-react"
 
 interface QRCodeData {
+  walletAddress: string
   contractAddress: string
-  tokenId: number
+  tokenId: number | string
   tokenURI: string
   timestamp: number
   uniqueId: string
 }
 
 interface QRCodeGeneratorProps {
+  walletAddress: string
   contractAddress: string
-  tokenId: number
+  tokenId: number | string
   tokenURI: string
   onClose: () => void
 }
 
-export function QRCodeGenerator({ contractAddress, tokenId, tokenURI, onClose }: QRCodeGeneratorProps) {
+export function QRCodeGenerator({ walletAddress, contractAddress, tokenId, tokenURI, onClose }: QRCodeGeneratorProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("")
   const [isUsed, setIsUsed] = useState(false)
   const [usageCount, setUsageCount] = useState(0)
@@ -39,8 +41,9 @@ export function QRCodeGenerator({ contractAddress, tokenId, tokenURI, onClose }:
     const generatedUniqueId = `${tokenId}-${timestamp}-${randomId}`
     setUniqueId(generatedUniqueId)
 
-    // Create QR code data
+    // Create enhanced QR code data with wallet address, token ID, and contract address
     const qrData: QRCodeData = {
+      walletAddress,
       contractAddress,
       tokenId,
       tokenURI,

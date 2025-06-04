@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://aeb0-102-0-0-242.ngrok-free.app';
+const API_BASE_URL = 'https://4583-2c0f-fe38-2195-6806-81d1-9870-7623-b234.ngrok-free.app';
 
 // For storing auth token and wallet address
 const AUTH_TOKEN_KEY = 'authToken';

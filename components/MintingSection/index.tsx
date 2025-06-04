@@ -7,10 +7,18 @@ import { MintButton } from '@/components/MintButton';
 
 export const MintingSection = ({
     isMinting,
-    onMintClick
+    onMintClick,
+    mintLimitReached,
+    remainingMints,
+    totalMinted,
+    mintLimit
 }: {
     isMinting: boolean,
-    onMintClick: () => void
+    onMintClick: () => void,
+    mintLimitReached?: boolean,
+    remainingMints?: number,
+    totalMinted?: number,
+    mintLimit?: number
 }) => {
     return (
         <motion.div
@@ -43,9 +51,43 @@ export const MintingSection = ({
                 >
                     Mint your exclusive Mocha Coffee Token and present the QR code at any participating premium coffee location to redeem your complimentary artisan coffee.
                 </motion.p>
+
+                {/* Minting Status Display */}
+                {(remainingMints !== undefined || (totalMinted !== undefined && mintLimit !== undefined)) && (
+                    <motion.div
+                        className="mt-4 p-3 rounded-lg bg-white/10 backdrop-blur-sm"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                    >
+                        {mintLimitReached ? (
+                            <p className="text-red-300 font-medium text-center">
+                                ⚠️ Minting limit reached! Your minting tokens are complete.
+                            </p>
+                        ) : (
+                            <div className="text-center">
+                                {totalMinted !== undefined && mintLimit !== undefined ? (
+                                    <p className="text-amber-200 font-medium">
+                                        ☕ {totalMinted} of {mintLimit} mints used
+                                    </p>
+                                ) : remainingMints !== undefined ? (
+                                    <p className="text-amber-200 font-medium">
+                                        ☕ Remaining mints: {remainingMints}
+                                    </p>
+                                ) : null}
+                            </div>
+                        )}
+                    </motion.div>
+                )}
             </div>
 
-            <MintButton isMinting={isMinting} onClick={onMintClick} />
+            {!mintLimitReached && (
+                <MintButton
+                    isMinting={isMinting}
+                    onClick={onMintClick}
+                    disabled={mintLimitReached}
+                />
+            )}
         </motion.div>
     );
 };

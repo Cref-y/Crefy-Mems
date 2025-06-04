@@ -9,9 +9,9 @@ import {
 } from "thirdweb/react";
 import {
     prepareContractCall,
-    getContract,
-    createThirdwebClient
+    getContract
 } from "thirdweb";
+import type { Account } from "thirdweb/wallets";
 import { CONTRACT_CONFIG } from "@/config/contract";
 import { sepolia } from "thirdweb/chains"; // Import your chain
 import { client } from '@/config/client';
@@ -27,7 +27,7 @@ type UseContractReturn = {
     account: string | undefined;
     status: string;
     connectWallet: () => Promise<void>;
-    mintToken: () => Promise<void>;
+    mintToken: () => Promise<any>;
     isConnected: boolean;
     // Add any read methods you need
     tokenMinted?: bigint;
@@ -73,9 +73,11 @@ export function useContract(): UseContractReturn {
                 method: "function mintFromContract()",
                 // Add any parameters if needed: params: [param1, param2]
             });
+            console.log("transaction", transaction)
 
             setStatus("Sending transaction...");
             const receipt = await sendTx(transaction);
+            console.log("reciept", receipt)
             setStatus("Token minted successfully!");
             return receipt;
         } catch (error) {
@@ -86,7 +88,7 @@ export function useContract(): UseContractReturn {
     };
 
     return {
-        account,
+        account: address,
         status,
         connectWallet,
         mintToken,
